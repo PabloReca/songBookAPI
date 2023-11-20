@@ -1,0 +1,29 @@
+# Test welcome endpoint
+GET http://127.0.0.1:8000/
+Accept: application/json
+
+###
+
+# Test getting all fields of a specific song
+GET http://127.0.0.1:8000/songs/4/all
+Accept: application/json
+
+###
+
+# Test getting specific fields (e.g., title, artist) of a specific song
+GET http://127.0.0.1:8000/songs/4/title,artist
+Accept: application/json
+
+###
+
+# Test getting all fields of all songs
+GET http://127.0.0.1:8000/songs/all/all
+Accept: application/json
+
+###
+
+# Test getting specific fields (e.g., title, artist) of all songs
+GET http://127.0.0.1:8000/songs/all/title,artist
+Accept: application/json
+
+###
