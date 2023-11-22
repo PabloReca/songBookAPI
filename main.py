@@ -1,4 +1,5 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
+from typing import Optional
 import sqlite3
 from sqlite3 import Error
 from contextlib import contextmanager
@@ -33,41 +34,35 @@ def execute_query(conn, query, params=None):
 
 
 @app.get("/songs/")
-async def get_songs(song_ids: str = None, artist_name: str = None, fields: str = "all"):
+async def filter_songs(filter_by: Optional[str] = None, fields: Optional[str] = None):
     valid_fields = ["id", "title", "artist", "album", "song_year", "original_key", "original_lead", "bpm",
                     "time_signature", "song_length", "man_key", "woman_key", "visibility", "intensity"]
-    requested_fields = fields.split(',') if fields != "all" else valid_fields
 
-    invalid_fields = [field for field in requested_fields if field not in valid_fields]
-    if invalid_fields:
-        raise HTTPException(status_code=400, detail=f"Campos no válidos: {', '.join(invalid_fields)}")
+    # Campos solicitados o todos si no se especifica
+    requested_fields = fields.split(',') if fields else valid_fields
+    requested_fields = [field for field in requested_fields if field in valid_fields]
 
+    # Construir la consulta
     query_fields = ", ".join(requested_fields)
     query = f"SELECT {query_fields} FROM songs"
+    conditions = []
     params = []
 
-    if song_ids:
-        song_ids_list = song_ids.split(',')
-        query += " WHERE id IN ({})".format(", ".join(["?"] * len(song_ids_list)))
-        params.extend(song_ids_list)
+    # Añadir filtros basados en los parámetros de consulta
+    if filter_by:
+        for filter_condition in filter_by.split(','):
+            field, value = filter_condition.split(':')
+            if field in valid_fields:
+                conditions.append(f"{field} = ?")
+                params.append(value)
 
-    if artist_name:
-        artist_names_list = artist_name.split(',')
-        artist_placeholders = ', '.join('?' for _ in artist_names_list)
-        if 'WHERE' in query:
-            query += f" AND artist IN ({artist_placeholders})"
-        else:
-            query += f" WHERE artist IN ({artist_placeholders})"
-        params.extend(artist_names_list)
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
 
     with get_db_connection() as conn:
         results = execute_query(conn, query, params)
 
-    if not results:
-        return {"error": "No se encontraron canciones con los criterios proporcionados"}
-
-    all_songs = [dict(zip(requested_fields, result)) for result in results]
-    return all_songs
+    return [dict(zip(requested_fields, result)) for result in results]
 
 
 @app.get("/songs/stats")
